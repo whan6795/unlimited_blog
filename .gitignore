@@ -1,3 +1,4 @@
 *.pyc
 /log/
 tencent_config.py
+.idea
