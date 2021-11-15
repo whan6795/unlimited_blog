@@ -41,6 +41,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'ckeditor',
     'corsheaders',
+    # 模块
+    'model_user',
+    'model_blog'
 ]
 
 MIDDLEWARE = [

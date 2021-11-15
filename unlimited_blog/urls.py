@@ -22,6 +22,8 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 
 urlpatterns = [
     url(r'api/blog/', include('model_blog.urls')),
+    url(r'api/user/', include('model_user.urls')),
+    # url(r'api/picture/', include('model_album.urls')),
 ]
 
 

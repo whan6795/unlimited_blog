@@ -9,28 +9,6 @@ _logger = logging.getLogger('django')
 setting_file = os.environ.get('ENV', 'prod')
 
 
-def check_user_power(power_list: list):
-    def outwrapper(func):
-        def wrapper(obj, request, *args, **kwargs):
-            role_id = request.session.get('role_id', '')
-            # print('role_id:', role_id)
-            if role_id:
-                _sql = 'SELECT id FROM ywg_genesis_roles_power WHERE role_id=%s AND value=1 AND (id=%s'
-                _sql += 'OR id=%s ' * (len(power_list) - 1)
-                _sql += ');'
-                power = db_util(_sql, [role_id] + power_list)
-                # print('model_power:', model_power)
-                if power:
-                    _logger.info('已授权的用户访问，用户role：%s,权限列表：%s' % (role_id, str(power_list)))
-                    return func(obj, request, *args, **kwargs)
-            _logger.info('无权限授权的用户访问，用户role：%s,权限列表：%s' % (role_id, str(power_list)))
-            return reformat_resp(RET.REQERR, {}, "无权限", http_status=status.HTTP_403_FORBIDDEN)
-
-        return wrapper
-
-    return outwrapper
-
-
 if setting_file == 'local':
     def check_login(func):
         def wrapper(obj, request, *args, **kwargs):

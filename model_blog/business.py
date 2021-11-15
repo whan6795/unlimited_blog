@@ -7,161 +7,81 @@ from utils.tencent_cos import TencentCos
 from utils.utils import gettime
 
 
-def upload_img_to_ali_oss(base64file):
-    spl_image_b64 = re.split(r"[:;,]", base64file)
-    image_type = re.split(r"/", spl_image_b64[1])
-    image = base64.urlsafe_b64decode(spl_image_b64[3])
-    now_time = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    tencent_cos = TencentCos()
-    file_name = '%s.%s' % (now_time, image_type[1])
-    result = tencent_cos.put_file(file_name, image)
-    return result
-
-
-def delete_picture_from_cos(file_list):
-    tencent_cos = TencentCos()
-    tencent_cos.delete_files(file_list)
-    # img_path = db_util('SELECT image_path FROM ywg_genesis_image_info WHERE image_id=\'%s\';' % img_id)
-    # if not img_path:
-    #     return False
-    # img_path = img_path[0]['image_path']
-    # aliyun_oss = AliyunOss()
-    # aliyun_oss.delete_file(img_path)
-    return True
-
-
-def upload_img(base64file, img_name, img_type_id, user_id):
-    """
-    :param base64file:base64格式文件
-    :return:阿里云上传结果
-    """
-    result = upload_img_to_ali_oss(base64file)
-    if result['status'] == 200:
-        _sql = 'INSERT INTO ywg_genesis_image_info (image_name,image_type_id,image_path,creator_id,add_date) VALUES (%s,%s,%s,%s,%s);'
-        db_util(_sql, [img_name, img_type_id, result['url'], user_id, gettime()])
-        return RET.OK, {}, 'succeed'
-    else:
-        print(result['detail'].resp)
-        err_detail = {
-            'ali_status': result['detail'].status,
-            'ali_documents': 'https://help.aliyun.com/document_detail/32039.html'
-        }
-        return RET.THIRDERR, err_detail, 'fail'
-
-
-def get_picture_list(page_size, cur_page, img_name):
-    if img_name == 'all':
-        total_records = db_util('SELECT COUNT(*) AS total_records FROM ywg_genesis_image_info;')[0]['total_records']
-        total_page = math.ceil(total_records / page_size) if total_records else 1
-        _sql = 'SELECT image_id,image_name,image_path FROM ywg_genesis_image_info ORDER BY image_id DESC LIMIT %d,%d;' % (cur_page, page_size)
+def get_blog_info(title, label, blog_id, cur_page, page_size, login):
+    if blog_id:
+        _sql = 'SELECT title,concat(\'[\',GROUP_CONCAT(bl.label_name),\']\') as labels,b.add_date,b.edit_date,\
+        case when u.nickname is not null then u.nickname else \'[已注销]\' end as author\
+        ,content FROM label_of_blog as lob,blog_labels as bl,blog as b LEFT JOIN user as u ON b.author=u.id \
+        WHERE bl.id=lob.label_id and b.id=lob.blog_id and b.id=%s' % blog_id
         # print(_sql)
-        detail = {
-            'picture_list': db_util(_sql),
-            'total_page': total_page,
-            'total_records': total_records
-        }
-        return RET.OK, detail, 'succeed'
-    else:
-        total_records = db_util(
-            'SELECT COUNT(*) AS total_records FROM ywg_genesis_image_info WHERE image_name LIKE \'%%{}%%\';'.format(
-                img_name))[0]['total_records']
+        result = db_util(_sql)
+        if result[0]['title']:
+            return RET.OK, result[0], 'succeed'
+        return RET.QUERYEMPTY, {}, '无此文章'
+    _sql_re = 'SELECT title,concat(\'[\',GROUP_CONCAT(bl.label_name),\']\') as labels,b.add_date,b.edit_date,\
+    case when u.nickname is not null then u.nickname else \'[已注销]\' end as author,left(content,50) as content FROM \
+    label_of_blog as lob,blog_labels as bl,blog as b LEFT JOIN user as u ON b.author=u.id WHERE bl.id=lob.label_id AND b.id=lob.blog_id'
+    _sql_count = 'SELECT COUNT(*) as total_records FROM blog as b'
+    if not title and not label and login:
+        _sql_re += ' ORDER BY id DESC LIMIT %d,%d;' % (cur_page, page_size)
+        # print(_sql_re, '\n', _sql_count)
+        res = db_util(_sql_re)
+        total_records = db_util(_sql_count)[0]['total_records']
         total_page = math.ceil(total_records / page_size) if total_records else 1
-        _sql = 'SELECT image_id,image_name,image_path from ywg_genesis_image_info WHERE image_name LIKE \'%%{}%%\' ORDER BY image_id DESC LIMIT {},{};'.format(
-            img_name, cur_page, page_size)
-        detail = {
-            'picture_list': db_util(_sql),
-            'total_page': total_page,
-            'total_records': total_records
-        }
-        return RET.OK, detail, 'succeed'
-
-
-def delete_picture_from_ali_oss(img_id):
-    pass
-    return True
-
-
-def delete_picture(img_id):
-    flag = delete_picture_from_ali_oss(img_id)
-    if flag:
-        db_util('DELETE FROM ywg_genesis_image_info WHERE image_id=%s;' % img_id)
-        return RET.OK, {}, 'succeed'
-    return RET.PARAMERR, {}, '图片id错误'
-
-
-def update_picture_info(img_id, img_name, img_type_id, img_path):
-    if not img_path.startswith('https://'):
-        flag = delete_picture_from_ali_oss(img_id)
-        if not flag:
-            return RET.PARAMERR, {}, '图片id错误'
-        result = upload_img_to_ali_oss(img_path)
-        if result['status'] == 200:
-            img_path = result['url']
-        else:
-            print(result['detail'].resp)
-            err_detail = {
-                'ali_status': result['detail'].status,
-                'ali_documents': 'https://help.aliyun.com/document_detail/32039.html'
-            }
-            return RET.THIRDERR, err_detail, '上传阿里云失败'
-    _sql = 'UPDATE ywg_genesis_image_info SET image_name=%s,image_type_id=%s,image_path=%s,edit_date=%s WHERE image_id=%s;'
-    db_util(_sql, [img_name, img_type_id, img_path, gettime(), img_id])
-    return RET.OK, {}, 'succeed'
-
-
-def get_picture_info(img_id):
-    _sql = 'SELECT image_name,image_path,image_type_id FROM ywg_genesis_image_info WHERE image_id=%s;'
-    result = db_util(_sql, [img_id])
-    if not result:
-        return RET.PARAMERR, {}, '图片id错误'
-    return RET.OK, result[0], 'succeed'
-
-
-def get_picture_type_list(image_type_name, cur_page, page_size):
-    _sql_records = 'SELECT COUNT(*) AS total_records FROM ywg_genesis_image_type'
-    _sql_list = 'SELECT image_type_id,image_type_name FROM ywg_genesis_image_type'
-    if image_type_name != 'all':
-        _sql_records += ' WHERE image_type_name LIKE \'%%{}%%\''.format(image_type_name)
-        _sql_list += ' WHERE image_type_name LIKE \'%%{}%%\''.format(image_type_name)
-    _sql_list += ' ORDER BY image_type_id DESC LIMIT {},{};'.format(cur_page, page_size)
-    _sql_records += ';'
-
-    total_records = db_util(_sql_records)[0]['total_records']
-    total_page = math.ceil(total_records / page_size) if total_records else 1
-    detail = {
-        'type_list': db_util(_sql_list),
-        'total_page': total_page,
-        'total_records': total_records
+    else:
+        _sql_re += ' AND'
+        _sql_count += ' WHERE'
+        if title:
+            _sql_title = ' title LIKE \'%%{}%%\' AND'.format(title)
+            _sql_re += _sql_title
+            _sql_count += _sql_title
+        if label:
+            label = eval(label)
+            _sql_label = ' b.id IN (SELECT blog_id FROM label_of_blog WHERE'
+            for i in label:
+                _sql_label += ' label_id=%s OR' % i
+            _sql_label = _sql_label[:-2]
+            _sql_label += ') AND'
+            _sql_re += _sql_label
+            _sql_count += _sql_label
+        if not login:
+            _sql_login = ' status=1 AND'
+            _sql_re += _sql_login
+            _sql_count += _sql_login
+        _sql_re = _sql_re[:-3]
+        _sql_re += ' GROUP BY lob.blog_id ORDER BY b.id DESC LIMIT %d,%d;' % (cur_page, page_size)
+        _sql_count = _sql_count[:-3]
+        # print(_sql_re, '\n', _sql_count)
+        res = db_util(_sql_re)
+        total_records = db_util(_sql_count)[0]['total_records']
+        total_page = math.ceil(total_records / page_size) if total_records else 1
+    data = {
+        'blog_list': res,
+        "total_records": total_records,
+        "total_page": total_page
     }
-    return RET.OK, detail, 'succeed'
+    if total_records == 0:
+        return RET.QUERYEMPTY, {}, '无结果'
+    return RET.OK, data, 'succeed'
 
 
-def add_picture_type(image_type_name, user_id):
-    _sql = 'INSERT INTO ywg_genesis_image_type (image_type_name,creator_id,add_date) VALUES (%s,%s,%s);'
-    db_util(_sql, [image_type_name, user_id, gettime()])
+def add_blog(title, label, content, user, _status):
+    _sql = 'INSERT INTO blog (title,content,author,status) VALUES (%s,%s,%s,%s);'
+    db_util(_sql, [title, content, user, _status])
+    _sql = 'SELECT MAX(id) AS max_id FROM blog;'
+    _id = db_util(_sql)[0]['max_id']
+    if label:
+        _sql = ''
+        label = eval(label)
+        for i in label:
+            _sql += 'INSERT INTO label_of_blog (blog_id,label_id) VALUES (%s,%s);' % (_id, i)
+        db_util(_sql)
     return RET.OK, {}, 'succeed'
+    # _sql = 'INSERT INTO label_of_blog () VALUES ();'
 
 
-def delete_picture_type(image_type_id):
-    _sql = 'DELETE FROM ywg_genesis_image_type WHERE image_type_id=%s;'
-    db_util(_sql, [image_type_id])
+def delete_blog(blog_id):
+    _sql = 'DELETE FROM blog WHERE id=%s;' % blog_id
+    _sql += 'DELETE FROM label_of_blog WHERE blog_id=%s;' % blog_id
+    db_util(_sql)
     return RET.OK, {}, 'succeed'
-
-
-def update_picture_type(image_type_id, image_type_name):
-    _sql = 'UPDATE ywg_genesis_image_type set image_type_name=%s,edit_date=%s WHERE image_type_id=%s;'
-    db_util(_sql, [image_type_name, gettime(), image_type_id])
-    return RET.OK, {}, 'succeed'
-
-
-def get_picture_type_info(image_type_id):
-    _sql = 'SELECT image_type_id,image_type_name FROM ywg_genesis_image_type WHERE image_type_id=%s;'
-    result = db_util(_sql, [image_type_id])
-    if result:
-        return RET.OK, result[0], 'succeed'
-    return RET.PARAMERR, {}, '图片id错误'
-
-
-def get_picture_type_list_all():
-    _sql = 'SELECT image_type_id,image_type_name FROM ywg_genesis_image_type;'
-    return RET.OK, db_util(_sql), 'succeed'

@@ -42,7 +42,7 @@ class TencentCos:
                 # 'Quiet': 'true'
             }
         )
-        print(result)
-        if 'Error' in result.keys():
-            self.delete_files([info['Key'] for info in result['Error']])
+        # print(result)
+        # if 'Error' in result.keys():
+        #     self.delete_files([info['Key'] for info in result['Error']])
 
