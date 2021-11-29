@@ -15,6 +15,7 @@ class BlogManageHandler(APIView):
     # 获取文章列表和详情
     def get(self, request):
         _logger.info('input params:%s, from ip:%s' % (str(dict(request.GET)), get_ip(request)))
+        # print(1111111111111111)
         page = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('page_size', 8))
         if page < 1 or page_size < 1:
@@ -24,7 +25,7 @@ class BlogManageHandler(APIView):
         label = request.GET.get('label', '')
         blog_id = request.GET.get('blog_id', '')
         cur_page = (page - 1) * page_size
-        if_login = request.session.get('username', '')
+        if_login = request.session.get('user_id', '')
         code, body, message = get_blog_info(title, label, blog_id, cur_page, page_size, if_login)
         _logger.info('response:[%s,%s,%s]' % (code, body, message))
         return reformat_resp(code, body, message)

@@ -7,69 +7,73 @@ from utils.tencent_cos import TencentCos
 from utils.utils import gettime
 
 
-def get_blog_info(title, label, blog_id, cur_page, page_size, login):
+def get_blog_info(title, label, blog_id, cur_page, page_size, user_id):
     if blog_id:
-        _sql = 'SELECT title,concat(\'[\',GROUP_CONCAT(bl.label_name),\']\') as labels,b.add_date,b.edit_date,\
-        case when u.nickname is not null then u.nickname else \'[已注销]\' end as author\
-        ,content FROM label_of_blog as lob,blog_labels as bl,blog as b LEFT JOIN user as u ON b.author=u.id \
-        WHERE bl.id=lob.label_id and b.id=lob.blog_id and b.id=%s' % blog_id
+        _sql = 'SELECT title,concat(\'[\',GROUP_CONCAT(DISTINCT bl.label_name),\']\') as labels,b.add_date,b.edit_date,\
+        case when u.nickname is not null then u.nickname else \'[已注销]\' end as author,content \
+        FROM blog AS b LEFT JOIN label_of_blog as lob ON b.id=lob.blog_id \
+        LEFT JOIN blog_labels as bl ON (lob.label_id=bl.id AND bl.user_id = b.author) \
+        LEFT JOIN user as u ON b.author=u.id \
+        WHERE b.id=%s' % blog_id
         # print(_sql)
         result = db_util(_sql)
         if result[0]['title']:
             return RET.OK, result[0], 'succeed'
         return RET.QUERYEMPTY, {}, '无此文章'
-    _sql_re = 'SELECT title,concat(\'[\',GROUP_CONCAT(bl.label_name),\']\') as labels,b.add_date,b.edit_date,\
-    case when u.nickname is not null then u.nickname else \'[已注销]\' end as author,left(content,50) as content FROM \
-    label_of_blog as lob,blog_labels as bl,blog as b LEFT JOIN user as u ON b.author=u.id WHERE bl.id=lob.label_id AND b.id=lob.blog_id'
-    _sql_count = 'SELECT COUNT(*) as total_records FROM blog as b'
-    if not title and not label and login:
-        _sql_re += ' ORDER BY id DESC LIMIT %d,%d;' % (cur_page, page_size)
-        # print(_sql_re, '\n', _sql_count)
-        res = db_util(_sql_re)
-        total_records = db_util(_sql_count)[0]['total_records']
-        total_page = math.ceil(total_records / page_size) if total_records else 1
+    _sql_re = 'SELECT title,label.labels,b.add_date,b.edit_date,\
+    case when u.nickname is not null then u.nickname else \'[已注销]\' end as author,left(content,50) as content \
+    FROM blog AS b LEFT JOIN label_of_blog as lob ON b.id=lob.blog_id \
+    LEFT JOIN blog_labels AS bl ON (lob.label_id=bl.id AND bl.user_id=b.author) \
+    LEFT JOIN user as u ON b.author=u.id \
+    LEFT JOIN \
+    (SELECT b.id,concat(\'[\',GROUP_CONCAT(DISTINCT bl.label_name),\']\') as labels FROM blog AS b \
+    LEFT JOIN label_of_blog AS lob ON b.id=lob.blog_id \
+    LEFT JOIN blog_labels AS bl ON (lob.label_id=bl.id AND bl.user_id = b.author)) AS label ON label.id=b.id \
+    WHERE 1=1'
+    _sql_count = 'SELECT COUNT(*) as total_records FROM blog as b{label}{user} WHERE 1=1'
+    if title:
+        _sql_title = ' AND b.title LIKE \'%%%%{}%%%%\''.format(title)
+        _sql_re += _sql_title
+        _sql_count += _sql_title
+    if label:
+        _sql_count = _sql_count.format(label=' LEFT JOIN label_of_blog as lob ON b.id=lob.blog_id \
+        LEFT JOIN blog_labels AS bl ON (lob.label_id=bl.id AND bl.user_id=b.author)', user='{user}')
+        _sql_label = ' AND bl.id={}'.format(label)
+        _sql_re += _sql_label
+        _sql_count += _sql_label
     else:
-        _sql_re += ' AND'
-        _sql_count += ' WHERE'
-        if title:
-            _sql_title = ' title LIKE \'%%{}%%\' AND'.format(title)
-            _sql_re += _sql_title
-            _sql_count += _sql_title
-        if label:
-            label = eval(label)
-            _sql_label = ' b.id IN (SELECT blog_id FROM label_of_blog WHERE'
-            for i in label:
-                _sql_label += ' label_id=%s OR' % i
-            _sql_label = _sql_label[:-2]
-            _sql_label += ') AND'
-            _sql_re += _sql_label
-            _sql_count += _sql_label
-        if not login:
-            _sql_login = ' status=1 AND'
-            _sql_re += _sql_login
-            _sql_count += _sql_login
-        _sql_re = _sql_re[:-3]
-        _sql_re += ' GROUP BY lob.blog_id ORDER BY b.id DESC LIMIT %d,%d;' % (cur_page, page_size)
-        _sql_count = _sql_count[:-3]
-        # print(_sql_re, '\n', _sql_count)
-        res = db_util(_sql_re)
-        total_records = db_util(_sql_count)[0]['total_records']
+        _sql_count = _sql_count.format(label='', user='{user}')
+    if user_id:
+        _sql_count = _sql_count.format(user=' LEFT JOIN user AS u ON b.author=u.id')
+        _sql_user = ' AND b.author=%s OR (b.author!=%s AND b.status=1)'
+        _sql_re += _sql_user
+        _sql_count += _sql_user
+    else:
+        _sql_count = _sql_count.format(user='')
+        _sql_user = ' AND b.status=1'
+        _sql_re += _sql_user
+        _sql_count += _sql_user
+    _sql_re += ' ORDER BY b.id DESC LIMIT {},{};'.format(cur_page, page_size)
+    _sql_count += ';'
+    res = db_util(_sql_re)
+    total_records = db_util(_sql_count)[0]['total_records']
+    if total_records:
         total_page = math.ceil(total_records / page_size) if total_records else 1
-    data = {
-        'blog_list': res,
-        "total_records": total_records,
-        "total_page": total_page
-    }
-    if total_records == 0:
-        return RET.QUERYEMPTY, {}, '无结果'
-    return RET.OK, data, 'succeed'
+        data = {
+            'blog_list': res,
+            "total_records": total_records,
+            "total_page": total_page
+        }
+        return RET.OK, data, 'succeed'
+    return RET.QUERYEMPTY, {}, '无结果'
 
 
 def add_blog(title, label, content, user, _status):
     _sql = 'INSERT INTO blog (title,content,author,status) VALUES (%s,%s,%s,%s);'
     db_util(_sql, [title, content, user, _status])
     _sql = 'SELECT MAX(id) AS max_id FROM blog;'
-    _id = db_util(_sql)[0]['max_id']
+    res = db_util(_sql)
+    _id = res[0]['max_id'] if res else 0
     if label:
         _sql = ''
         label = eval(label)
