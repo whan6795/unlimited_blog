@@ -10,16 +10,25 @@ _logger = logging.getLogger('django')
 def login(request, username, password):
     password = str_md5_encrypt(password)
     verify = db_util(
-        'SELECT id,username FROM user WHERE username=%s AND password=%s;',
-        [username, password])
+        'SELECT id,username,password,avatar,nickname,introduce FROM user WHERE username=%s;', [username])
     if verify:
-        # print(verify)
-        request.session['user_id'] = verify[0]['id']
-        request.session['username'] = username
-        request.session.set_expiry(0)
-        # return reformat_resp(RET.OK, {'session_id': request.session.session_key}, '登陆成功')
-        return RET.OK, {'name': verify[0]['username']}, '登陆成功'
-    return RET.LOGINERR, {}, '用户名或密码错误'
+        if password == verify[0]['password']:
+            request.session['user_id'] = verify[0]['id']
+            request.session['username'] = username
+            request.session['avatar'] = verify[0]['avatar']
+            request.session['nickname'] = verify[0]['nickname']
+            request.session['introduce'] = verify[0]['introduce']
+            request.session.set_expiry(0)
+            detail = {
+                "username": username,
+                "nickname": verify[0]['nickname'],
+                "introduce": verify[0]['introduce'],
+                "avatar": verify[0]['avatar']
+            }
+            # return reformat_resp(RET.OK, {'session_id': request.session.session_key}, '登陆成功')
+            return RET.OK, detail, '登陆成功'
+        return RET.LOGINERR, {}, '密码错误!'
+    return RET.LOGINERR, {}, '用户名不存在'
 
 
 def reset_password(request, password):
@@ -32,7 +41,7 @@ def reset_password(request, password):
 
 
 def user_info(user_id):
-    _sql = 'SELECT id,avator,nickname,introduce FROM ywg_genesis_employee_info where id=%s;'
+    _sql = 'SELECT id,avatar,nickname,introduce FROM ywg_genesis_employee_info where id=%s;'
     re = db_util(_sql, [user_id])
     if re:
         return RET.OK, re[0], 'succeed'

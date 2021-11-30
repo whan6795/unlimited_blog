@@ -7,8 +7,10 @@ from utils.tencent_cos import TencentCos
 from utils.utils import gettime
 
 
-def get_blog_info(title, label, blog_id, cur_page, page_size, user_id):
+# 门户
+def get_blog_portal(title, blog_id, cur_page, page_size, user_id):
     if blog_id:
+        # TODO status=0时情况
         _sql = 'SELECT title,concat(\'[\',GROUP_CONCAT(DISTINCT bl.label_name),\']\') as labels,b.add_date,b.edit_date,\
         case when u.nickname is not null then u.nickname else \'[已注销]\' end as author,content \
         FROM blog AS b LEFT JOIN label_of_blog as lob ON b.id=lob.blog_id \
@@ -21,7 +23,7 @@ def get_blog_info(title, label, blog_id, cur_page, page_size, user_id):
             return RET.OK, result[0], 'succeed'
         return RET.QUERYEMPTY, {}, '无此文章'
     _sql_re = 'SELECT title,label.labels,b.add_date,b.edit_date,\
-    case when u.nickname is not null then u.nickname else \'[已注销]\' end as author,left(content,50) as content \
+    case when u.nickname is not null then u.nickname else \'[已注销]\' end as author,left(content,20) as content \
     FROM blog AS b LEFT JOIN label_of_blog as lob ON b.id=lob.blog_id \
     LEFT JOIN blog_labels AS bl ON (lob.label_id=bl.id AND bl.user_id=b.author) \
     LEFT JOIN user as u ON b.author=u.id \
@@ -30,22 +32,14 @@ def get_blog_info(title, label, blog_id, cur_page, page_size, user_id):
     LEFT JOIN label_of_blog AS lob ON b.id=lob.blog_id \
     LEFT JOIN blog_labels AS bl ON (lob.label_id=bl.id AND bl.user_id = b.author)) AS label ON label.id=b.id \
     WHERE 1=1'
-    _sql_count = 'SELECT COUNT(*) as total_records FROM blog as b{label}{user} WHERE 1=1'
+    _sql_count = 'SELECT COUNT(*) as total_records FROM blog as b{user} WHERE 1=1'
     if title:
         _sql_title = ' AND b.title LIKE \'%%%%{}%%%%\''.format(title)
         _sql_re += _sql_title
         _sql_count += _sql_title
-    if label:
-        _sql_count = _sql_count.format(label=' LEFT JOIN label_of_blog as lob ON b.id=lob.blog_id \
-        LEFT JOIN blog_labels AS bl ON (lob.label_id=bl.id AND bl.user_id=b.author)', user='{user}')
-        _sql_label = ' AND bl.id={}'.format(label)
-        _sql_re += _sql_label
-        _sql_count += _sql_label
-    else:
-        _sql_count = _sql_count.format(label='', user='{user}')
     if user_id:
         _sql_count = _sql_count.format(user=' LEFT JOIN user AS u ON b.author=u.id')
-        _sql_user = ' AND b.author=%s OR (b.author!=%s AND b.status=1)'
+        _sql_user = ' AND b.author=%s OR (b.author!=%s AND b.status=1)' % user_id
         _sql_re += _sql_user
         _sql_count += _sql_user
     else:
@@ -68,6 +62,12 @@ def get_blog_info(title, label, blog_id, cur_page, page_size, user_id):
     return RET.QUERYEMPTY, {}, '无结果'
 
 
+# 个人主页-查看
+def get_blog(title, label, blog_id, cur_page, page_size, user_id):
+    pass
+
+
+# 个人主页-新增
 def add_blog(title, label, content, user, _status):
     _sql = 'INSERT INTO blog (title,content,author,status) VALUES (%s,%s,%s,%s);'
     db_util(_sql, [title, content, user, _status])
@@ -84,8 +84,14 @@ def add_blog(title, label, content, user, _status):
     # _sql = 'INSERT INTO label_of_blog () VALUES ();'
 
 
+# 个人主页-删除
 def delete_blog(blog_id):
     _sql = 'DELETE FROM blog WHERE id=%s;' % blog_id
     _sql += 'DELETE FROM label_of_blog WHERE blog_id=%s;' % blog_id
     db_util(_sql)
     return RET.OK, {}, 'succeed'
+
+
+# 个人主页-修改
+def edit_blog(blog_id, title, label, content, user, _status):
+    pass
