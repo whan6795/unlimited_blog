@@ -7,5 +7,4 @@ urlpatterns = [
     url('^logout', views.LogOutView.as_view()),
     url('^info', views.ShowUserInfoHandler.as_view()),
     url('^reset', views.ChangePasswordHandler.as_view()),
-
 ]

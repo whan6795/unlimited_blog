@@ -78,7 +78,7 @@ class BlogManageHandler(APIView):
         if not check_params(request, needed_params):
             _logger.info('response:[%s,%s,%s]' % (RET.PARAMERR, {}, '参数错误'))
             return reformat_resp(RET.PARAMERR, {}, '参数错误')
-        blog_id = request.GET.get('blog_id')
+        blog_id = request.GET.get('blogId')
         code, body, message = delete_blog(blog_id)
         _logger.info('response:[%s,%s,%s]' % (code, body, message))
         return reformat_resp(code, body, message)
