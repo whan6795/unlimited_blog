@@ -2,3 +2,5 @@
 /log/
 tencent_config.py
 .idea
+/settings/local.py
+/settings/prod.py
