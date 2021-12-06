@@ -48,7 +48,7 @@ class ShowUserInfoHandler(APIView):
     @check_login
     def get(self, request):
         _logger.info('input params:%s, from ip:%s' % (str(dict(request.GET)), get_ip(request)))
-        needed_params = ['user_id']
+        needed_params = ['userId']
         if not check_params(request, needed_params):
             _logger.info('response:[%s,%s,%s]' % (RET.PARAMERR, {}, '参数错误'))
             return reformat_resp(RET.PARAMERR, {}, '参数错误')

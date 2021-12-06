@@ -17,7 +17,7 @@
 
 - 在根目录下新建`tencent_config.py`文件，并写入以下内容：
 
-```buildoutcfg
+```
 TENCENT_SECRET_ID = 'TENCENT_SECRET_ID'
 TENCENT_SECRET_KEY = 'TENCENT_SECRET_KEY'
 TENCENT_REGION = 'TENCENT_REGION'
@@ -38,7 +38,7 @@ TENCENT_BUCKET = 'TENCENT_BUCKET'
 ## 数据库配置
 
 - 在`settings`目录下新建`config.py`文件，写入数据库配置，如下：
-```buildoutcfg
+```
 from .base import *
 
 

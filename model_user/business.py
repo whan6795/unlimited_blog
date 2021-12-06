@@ -41,8 +41,8 @@ def reset_password(request, password):
 
 
 def user_info(user_id):
-    _sql = 'SELECT id,avatar,nickname,introduce FROM ywg_genesis_employee_info where id=%s;'
+    _sql = 'SELECT id,avatar,nickname,introduce FROM user where id=%s;'
     re = db_util(_sql, [user_id])
     if re:
         return RET.OK, re[0], 'succeed'
-    return RET.OK, {}, 'succeed'
+    return RET.DATAEMPTY, {}, '无此用户'

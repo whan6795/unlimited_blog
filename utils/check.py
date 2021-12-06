@@ -9,7 +9,7 @@ _logger = logging.getLogger('django')
 setting_file = os.environ.get('ENV', 'prod')
 
 
-if setting_file == 'local':
+if setting_file == '1111':
     def check_login(func):
         def wrapper(obj, request, *args, **kwargs):
             _logger.info('本地测试，不进行登录验证')
