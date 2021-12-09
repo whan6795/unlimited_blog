@@ -4,3 +4,4 @@ tencent_config.py
 .idea
 **/settings/*
 !**/settings/base.py
+!**/settings/__init__.py
