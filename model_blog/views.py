@@ -22,12 +22,10 @@ class BlogPortalHandler(APIView):
             _logger.info('response:[%s,%s,%s]' % (RET.PARAMERR, {}, '参数错误'))
             return reformat_resp(RET.PARAMERR, {}, '参数错误')
         title = request.GET.get('title', '')
-        # label = request.GET.get('label', '')
-        blog_id = request.GET.get('blog_id', '')
         author = request.GET.get('author', '')
         cur_page = (page - 1) * page_size
         user_id = request.session.get('user_id', '')
-        code, body, message = get_blog_portal(title, blog_id, cur_page, page_size, user_id)
+        code, body, message = get_blog_portal(title, author, cur_page, page_size, user_id)
         _logger.info('response:[%s,%s,%s]' % (code, body, message))
         return reformat_resp(code, body, message)
 

@@ -149,6 +149,7 @@ CORS_ALLOW_CREDENTIALS = True
 # 如果没设置该参数，则必须设置白名单，运行部分白名单的主机才能执行跨站点请求
 CORS_ORIGIN_ALLOW_ALL = True
 
+# 日志设置
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
