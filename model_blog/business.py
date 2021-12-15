@@ -8,8 +8,8 @@ from utils.utils import gettime
 
 
 # 门户
-def get_blog_portal(title, author, cur_page, page_size, user_id):
-    _sql_re = """SELECT title,b.add_date,b.edit_date,
+def get_blog_portal(title, cur_page, page_size, user_id):
+    _sql_re = """SELECT title,b.add_date,b.edit_date,status,
     case when u.nickname is not null then u.nickname else '[已注销]' end as author,left(content,20) as content 
     FROM blog AS b LEFT JOIN label_of_blog as lob ON b.id=lob.blog_id 
     LEFT JOIN user as u ON b.author=u.id 
@@ -21,7 +21,7 @@ def get_blog_portal(title, author, cur_page, page_size, user_id):
         _sql_count += _sql_title
     if user_id:
         _sql_count = _sql_count.format(user=' LEFT JOIN user AS u ON b.author=u.id')
-        _sql_user = ' AND b.author=%s OR (b.author!=%s AND b.status=1)' % user_id
+        _sql_user = ' AND b.author=%s OR (b.author!=%s AND b.status=1)' % (user_id, user_id)
         _sql_re += _sql_user
         _sql_count += _sql_user
     else:
@@ -45,7 +45,7 @@ def get_blog_portal(title, author, cur_page, page_size, user_id):
 
 
 # 个人主页-查看
-def get_blog(title, label, blog_id, cur_page, page_size, user_id):
+def get_blog(title, label, blog_id, cur_page, page_size, user_id, login_user_id):
     if blog_id:
         # TODO status=0时情况
         _sql = 'SELECT title,concat(\'[\',GROUP_CONCAT(DISTINCT bl.label_name),\']\') as labels,b.add_date,b.edit_date,\

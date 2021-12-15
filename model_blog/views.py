@@ -17,15 +17,15 @@ class BlogPortalHandler(APIView):
     def get(self, request):
         _logger.info('input params:%s, from ip:%s' % (str(dict(request.GET)), get_ip(request)))
         page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 8))
+        page_size = int(request.GET.get('pageSize', 8))
         if page < 1 or page_size < 1:
             _logger.info('response:[%s,%s,%s]' % (RET.PARAMERR, {}, '参数错误'))
             return reformat_resp(RET.PARAMERR, {}, '参数错误')
         title = request.GET.get('title', '')
-        author = request.GET.get('author', '')
+        # author = request.GET.get('author', '')
         cur_page = (page - 1) * page_size
         user_id = request.session.get('user_id', '')
-        code, body, message = get_blog_portal(title, author, cur_page, page_size, user_id)
+        code, body, message = get_blog_portal(title, cur_page, page_size, user_id)
         _logger.info('response:[%s,%s,%s]' % (code, body, message))
         return reformat_resp(code, body, message)
 
@@ -37,17 +37,16 @@ class BlogManageHandler(APIView):
     def get(self, request, user_id):
         _logger.info('input params:%s, from ip:%s' % (str(dict(request.GET)), get_ip(request)))
         page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 8))
+        page_size = int(request.GET.get('pageSize', 8))
         if page < 1 or page_size < 1:
             _logger.info('response:[%s,%s,%s]' % (RET.PARAMERR, {}, '参数错误'))
             return reformat_resp(RET.PARAMERR, {}, '参数错误')
         title = request.GET.get('title', '')
         label = request.GET.get('label', '')
         blog_id = request.GET.get('blog_id', '')
-        author = request.GET.get('author', '')
         cur_page = (page - 1) * page_size
-        user_id = request.session.get('user_id', '')
-        code, body, message = get_blog(title, label, blog_id, cur_page, page_size, user_id)
+        login_user_id = request.session.get('user_id', '')
+        code, body, message = get_blog(title, label, blog_id, cur_page, page_size, user_id, login_user_id)
         _logger.info('response:[%s,%s,%s]' % (code, body, message))
         return reformat_resp(code, body, message)
 
